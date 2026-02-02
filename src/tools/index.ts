@@ -9,4 +9,5 @@ export {
   grepTool,
   memorySearchTool,
   memoryGetTool,
+  sessionsSpawnTool,
 } from "./builtin.js";

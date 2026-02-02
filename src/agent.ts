@@ -31,6 +31,7 @@ import {
   normalizeAgentId,
   resolveAgentIdFromSessionKey,
   resolveSessionKey,
+  isSubagentSessionKey,
 } from "./session-key.js";
 import { enqueueInLane, resolveGlobalLane, resolveSessionLane } from "./command-queue.js";
 import { filterToolsByPolicy, mergeToolPolicies, type ToolPolicy } from "./tool-policy.js";
@@ -231,6 +232,79 @@ export class Agent {
   }
 
   /**
+   * 生成子代理 sessionKey
+   */
+  private buildSubagentSessionKey(agentId: string): string {
+    const id = crypto.randomUUID();
+    return `agent:${normalizeAgentId(agentId)}:subagent:${id}`;
+  }
+
+  /**
+   * 启动子代理（最小版）
+   *
+   * - 只允许主会话触发
+   * - 子代理完成后发出 subagent 事件，并写入父会话记录
+   */
+  private async spawnSubagent(params: {
+    parentSessionKey: string;
+    task: string;
+    label?: string;
+    cleanup?: "keep" | "delete";
+  }): Promise<{ runId: string; sessionKey: string }> {
+    if (isSubagentSessionKey(params.parentSessionKey)) {
+      throw new Error("子代理会话不能再触发子代理");
+    }
+    const childSessionKey = this.buildSubagentSessionKey(this.agentId);
+    const runPromise = this.run(childSessionKey, params.task);
+    runPromise
+      .then(async (result) => {
+        const summary = result.text.slice(0, 600);
+        this.subagentSummaries.set(result.runId ?? childSessionKey, summary);
+        emitAgentEvent({
+          runId: result.runId ?? childSessionKey,
+          stream: "subagent",
+          sessionKey: params.parentSessionKey,
+          agentId: this.agentId,
+          data: {
+            phase: "summary",
+            childSessionKey,
+            label: params.label,
+            task: params.task,
+            summary,
+          },
+        });
+        const summaryMsg: Message = {
+          role: "user",
+          content: `[子代理摘要]\n${summary}`,
+          timestamp: Date.now(),
+        };
+        await this.sessions.append(params.parentSessionKey, summaryMsg);
+        if (params.cleanup === "delete") {
+          await this.sessions.clear(childSessionKey);
+        }
+      })
+      .catch((err) => {
+        emitAgentEvent({
+          runId: childSessionKey,
+          stream: "subagent",
+          sessionKey: params.parentSessionKey,
+          agentId: this.agentId,
+          data: {
+            phase: "error",
+            childSessionKey,
+            label: params.label,
+            task: params.task,
+            error: err instanceof Error ? err.message : String(err),
+          },
+        });
+      });
+    return {
+      runId: childSessionKey,
+      sessionKey: childSessionKey,
+    };
+  }
+
+  /**
    * 构建完整系统提示
    */
   private async buildSystemPrompt(): Promise<string> {
@@ -314,6 +388,13 @@ export class Agent {
             memoriesUsed += results.length;
             callbacks?.onMemorySearch?.(results);
           },
+          spawnSubagent: async ({ task, label, cleanup }) =>
+            this.spawnSubagent({
+              parentSessionKey: sessionKey,
+              task,
+              label,
+              cleanup,
+            }),
         };
 
         let processedMessage = userMessage;

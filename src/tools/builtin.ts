@@ -3,7 +3,7 @@
  *
  * 对应 OpenClaw 源码: src/tools/ 目录 (50+ 工具)
  *
- * 这里只实现了 8 个最基础的工具，覆盖了 Agent 的核心能力:
+ * 这里只实现了 9 个最基础的工具，覆盖了 Agent 的核心能力:
  * - read: 读取文件 (感知代码)
  * - write: 写入文件 (创建代码)
  * - edit: 编辑文件 (修改代码)
@@ -12,6 +12,7 @@
  * - grep: 搜索文件 (定位代码)
  * - memory_search: 记忆检索 (历史召回)
  * - memory_get: 记忆读取 (按需拉取)
+ * - sessions_spawn: 子代理触发
  *
  * 设计原则:
  * 1. 安全第一: 所有路径都基于 workspaceDir，防止越界访问
@@ -389,15 +390,54 @@ export const memoryGetTool: Tool<{ id: string }> = {
   },
 };
 
+// ============== 子代理工具 ==============
+
+/**
+ * 子代理触发工具（最小版）
+ *
+ * 设计目标:
+ * - 允许主代理将任务拆到后台子代理
+ * - 子代理完成后由系统回传摘要（事件流）
+ */
+export const sessionsSpawnTool: Tool<{
+  task: string;
+  label?: string;
+  cleanup?: "keep" | "delete";
+}> = {
+  name: "sessions_spawn",
+  description: "启动子代理执行后台任务，并回传摘要",
+  inputSchema: {
+    type: "object",
+    properties: {
+      task: { type: "string", description: "子代理任务描述" },
+      label: { type: "string", description: "可选标签" },
+      cleanup: { type: "string", description: "完成后是否清理会话: keep|delete" },
+    },
+    required: ["task"],
+  },
+  async execute(input, ctx) {
+    if (!ctx.spawnSubagent) {
+      return "子代理系统未启用";
+    }
+    const result = await ctx.spawnSubagent({
+      task: input.task,
+      label: input.label,
+      cleanup: input.cleanup,
+    });
+    return `子代理已启动: runId=${result.runId} sessionKey=${result.sessionKey}`;
+  },
+};
+
 // ============== 导出 ==============
 
 /**
  * 所有内置工具
  *
- * 这 8 个工具覆盖了 Agent 的核心能力:
+ * 这 9 个工具覆盖了 Agent 的核心能力:
  * - 感知: read, list, grep
  * - 行动: write, edit, exec
  * - 记忆: memory_search, memory_get
+ * - 编排: sessions_spawn
  *
  * OpenClaw 有 50+ 工具，包括:
  * - 浏览器自动化 (Puppeteer)
@@ -406,7 +446,7 @@ export const memoryGetTool: Tool<{ id: string }> = {
  * - API 调用
  * - 等等...
  *
- * 但这 8 个是最基础的，理解了这些就理解了工具系统的本质。
+ * 但这 9 个是最基础的，理解了这些就理解了工具系统的本质。
  */
 export const builtinTools: Tool[] = [
   readTool,
@@ -417,4 +457,5 @@ export const builtinTools: Tool[] = [
   grepTool,
   memorySearchTool,
   memoryGetTool,
+  sessionsSpawnTool,
 ];

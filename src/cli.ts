@@ -148,6 +148,20 @@ async function main() {
         const length = evt.data.text.length;
         console.error(color(`[event] assistant final chars=${length}`, "magenta"));
       }
+      return;
+    }
+
+    if (evt.stream === "subagent") {
+      const phase = typeof evt.data?.phase === "string" ? evt.data.phase : undefined;
+      if (phase === "summary") {
+        const summary = typeof evt.data?.summary === "string" ? evt.data.summary : "";
+        const label = typeof evt.data?.label === "string" ? ` (${evt.data.label})` : "";
+        console.error(color(`\n[subagent${label}] ${summary}\n`, "cyan"));
+      }
+      if (phase === "error") {
+        const error = typeof evt.data?.error === "string" ? evt.data.error : "unknown";
+        console.error(color(`\n[subagent] error: ${error}\n`, "yellow"));
+      }
     }
   });
 

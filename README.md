@@ -344,6 +344,8 @@ agent.startHeartbeat((tasks, request) => {
 
 > 记忆使用提示：mini 版改为“工具化记忆”，在系统提示中引导模型先调用 `memory_search` 再 `memory_get` 拉取细节。
 
+> 子代理：可通过 `sessions_spawn` 工具启动后台子代理，完成后会在 CLI 输出摘要，并写入父会话记录。
+
 ## 学习路径建议
 
 1. **先读 `agent.ts`**：理解 Agent Loop 和子系统整合

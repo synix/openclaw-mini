@@ -30,6 +30,7 @@ export {
   normalizeAgentId,
   resolveSessionKey,
   parseAgentSessionKey,
+  isSubagentSessionKey,
   buildAgentMainSessionKey,
   resolveAgentIdFromSessionKey,
 } from "./session-key.js";

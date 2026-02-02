@@ -51,6 +51,12 @@ export interface ToolContext {
   memory?: MemoryManager;
   /** 记忆检索回调（用于统计或可视化） */
   onMemorySearch?: (results: MemorySearchResult[]) => void;
+  /** 子代理触发器（最小版） */
+  spawnSubagent?: (params: {
+    task: string;
+    label?: string;
+    cleanup?: "keep" | "delete";
+  }) => Promise<{ runId: string; sessionKey: string }>;
   /** 中止信号: 支持取消长时间运行的操作 */
   abortSignal?: AbortSignal;
 }

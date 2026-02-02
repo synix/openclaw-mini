@@ -5,7 +5,7 @@
  * 参考 OpenClaw: src/infra/agent-events.ts
  */
 
-export type AgentEventStream = "lifecycle" | "assistant" | "tool" | "error";
+export type AgentEventStream = "lifecycle" | "assistant" | "tool" | "subagent" | "error";
 
 export type AgentEventPayload = {
   runId: string;

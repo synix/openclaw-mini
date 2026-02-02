@@ -73,6 +73,14 @@ export function parseAgentSessionKey(
   return { agentId, rest };
 }
 
+export function isSubagentSessionKey(sessionKey: string | undefined | null): boolean {
+  const parsed = parseAgentSessionKey(sessionKey);
+  if (!parsed?.rest) {
+    return false;
+  }
+  return parsed.rest.trim().toLowerCase().startsWith("subagent:");
+}
+
 export function resolveAgentIdFromSessionKey(sessionKey: string | undefined | null): string {
   const parsed = parseAgentSessionKey(sessionKey);
   return normalizeAgentId(parsed?.agentId ?? DEFAULT_AGENT_ID);
